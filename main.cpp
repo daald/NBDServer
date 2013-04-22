@@ -470,7 +470,7 @@ DWORD WINAPI blockServe(LPVOID data){
 		debugLog(sformat("Offset:   %ld,%ld (%lx%lx)", from.HighPart, from.LowPart, from.HighPart, from.LowPart));
 		debugLog(sformat("Len:      %ld", len));
 		//debugLog(sformat("Handle:   %s\n", handle));
-//		debugLog(sformat("Req.type: %ld (%s)\n", type, type?"write":"read"));
+		debugLog(sformat("Req.type: %u (%s)", type, (type==1)?"write":(type==0)?"read":"?"));
 
 
 		// verify protocol
@@ -504,7 +504,7 @@ DWORD WINAPI blockServe(LPVOID data){
 				break;
 			}
 		}
-		else if (type == 1)	// write
+		else if (type == 1) // write
 		{
 			while(len > 0)
 			{
@@ -519,7 +519,7 @@ DWORD WINAPI blockServe(LPVOID data){
 				if (allowWrite and !bMemory){
     				if (WriteFile(fh, buffer, nb, &dummy, NULL) == 0)
     				{
-    					errorLog(sformat("Failed to write to %s: %lu\n", filename, GetLastError()));
+    					errorLog(sformat("Failed to write %l bytes to %s: %lu\n", nb, filename, GetLastError()));
     					err = error_mapper(GetLastError());
     					break;
     				}
@@ -528,7 +528,9 @@ DWORD WINAPI blockServe(LPVOID data){
     					errorLog(sformat("Failed to write to %s: %d (written: %d, requested to write: %lu)\n", filename, GetLastError(), dummy, nb));
     					break;
     				}
-                }
+				} else {
+					errorLog("ignoring write request");
+				}
 
 				len -= nb;
 			}
