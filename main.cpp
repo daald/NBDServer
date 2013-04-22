@@ -511,7 +511,10 @@ DWORD WINAPI blockServe(LPVOID data){
 				DWORD dummy;
 				UCHAR buffer[32768];
 				// read from socket
-				int nb = recv(sockh, (char *)buffer, min((const int)len, (const int)32768), 0);
+				int nb = min((const int)len, (const int)(sizeof buffer));
+				nb = nb | 0x1FF ^ 0x1FF; //floor to previous 512
+				debugLog(sformat("recv %d bytes", nb));
+				nb = recv(sockh, (char *)buffer, nb, 0);
 				if (nb == 0)
 					break;
 
@@ -519,7 +522,7 @@ DWORD WINAPI blockServe(LPVOID data){
 				if (allowWrite and !bMemory){
     				if (WriteFile(fh, buffer, nb, &dummy, NULL) == 0)
     				{
-    					errorLog(sformat("Failed to write %l bytes to %s: %lu\n", nb, filename, GetLastError()));
+    					errorLog(sformat("Failed to write %d bytes to %s: %lu\n", nb, filename, GetLastError()));
     					err = error_mapper(GetLastError());
     					break;
     				}
