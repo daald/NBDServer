@@ -156,19 +156,9 @@ int error_mapper(DWORD winerr)
 
 LARGE_INTEGER add_li(LARGE_INTEGER i1, LARGE_INTEGER i2)
 {
-	LARGE_INTEGER dummy;
-
-	dummy = i1;
-
-	dummy.LowPart += i2.LowPart;
-	if (dummy.LowPart <= i1.LowPart && i2.LowPart > 0)
-	{
-		dummy.HighPart++;
-	}
-
-	dummy.HighPart += i2.HighPart;
-
-	return dummy;
+	LARGE_INTEGER res;
+	res.QuadPart = i1.QuadPart + i2.QuadPart;
+	return res;
 }
 
 int READ(SOCKET sh, UCHAR *whereto, int howmuch)
