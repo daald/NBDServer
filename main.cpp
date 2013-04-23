@@ -371,10 +371,8 @@ DWORD WINAPI blockServe(LPVOID data){
    }
 	else													/* plain file */
 	{
-		fsize.LowPart = GetFileSize(fh, (DWORD *)&fsize.HighPart);
-		if (fsize.LowPart == 0xFFFFFFFF)
-		{
-			errorLog("Failed to obtain filesize info!");
+		if (GetFileSizeEx(fh, &fsize) == 0) {
+			errorLog(sformat("Failed to obtain filesize info: %lu", GetLastError()));
 			goto error;
 		}
 	}
@@ -471,7 +469,7 @@ DWORD WINAPI blockServe(LPVOID data){
 		cur_offset = add_li(offset, from);
 
 		// seek to 'from'
-		if (type!=2 && !bMemory && SetFilePointer(fh, cur_offset.LowPart, &cur_offset.HighPart, FILE_BEGIN) == 0xFFFFFFFF)
+		if (type!=2 && !bMemory && SetFilePointerEx(fh, cur_offset, NULL, FILE_BEGIN) == 0)
 		{
 			errorLog(sformat("Error seeking in file %s to position %lld (%llx): %lu\n", filename,
 				cur_offset.QuadPart, cur_offset.QuadPart, GetLastError()));
@@ -582,7 +580,7 @@ DWORD WINAPI blockServe(LPVOID data){
                     }else{
                         debugLog(sformat("Sending mem: %lld,%d",cur_offset.QuadPart,nb));
                 		// seek to 'from'
-                		if (SetFilePointer(fh, cur_offset.LowPart, &cur_offset.HighPart, FILE_BEGIN) == 0xFFFFFFFF)
+                		if (SetFilePointerEx(fh, cur_offset, NULL, FILE_BEGIN) == 0)
                 		{
                 			errorLog(sformat("Error seeking in file %s to position %lld (%llx): %lu\n", filename,
                 				cur_offset.QuadPart, cur_offset.QuadPart, GetLastError()));
