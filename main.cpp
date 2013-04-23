@@ -493,36 +493,41 @@ DWORD WINAPI blockServe(LPVOID data){
 		}
 		else if (type == 1) // write
 		{
+			UCHAR buffer[32768];
+			const int writeBlockSize = 512;
+			const int bufsize = sizeof buffer;
+			int buflen = 0; // currently in buffer
 			while(len > 0)
 			{
-				DWORD dummy;
-				UCHAR buffer[32768];
-				// read from socket
-				int nb = min((const int)len, (const int)(sizeof buffer));
-				nb = nb | 0x1FF ^ 0x1FF; //floor to previous 512
-				debugLog(sformat("recv %d bytes", nb));
-				nb = recv(sockh, (char *)buffer, nb, 0);
-				if (nb == 0)
-					break;
+				// read from socket (add to buffer)
+				int nb = min((const int)len, (const int)(bufsize-buflen));
+				debugLog(sformat("recv max %d bytes", nb));
+				nb = recv(sockh, (char*)(&buffer[buflen]), nb, 0);
+				buflen += nb;
+				len -= nb;
 
 				// write to file;
-				if (allowWrite and !bMemory){
-    				if (WriteFile(fh, buffer, nb, &dummy, NULL) == 0)
-    				{
-    					errorLog(sformat("Failed to write %d bytes to %s: %lu\n", nb, filename, GetLastError()));
-    					err = error_mapper(GetLastError());
-    					break;
-    				}
-    				if (dummy != nb)
-    				{
-    					errorLog(sformat("Failed to write to %s: %d (written: %d, requested to write: %lu)\n", filename, GetLastError(), dummy, nb));
-    					break;
-    				}
-				} else {
+				if (!allowWrite or bMemory){
 					errorLog("ignoring write request");
-				}
+				} else if (buflen >= writeBlockSize) {
+					DWORD bWritten;
+					nb = buflen //floor to previous 512
+					      | (writeBlockSize-1)
+					      ^ (writeBlockSize-1);
+					debugLog(sformat("WriteFile %d bytes of %d bytes in buffer", nb, buflen));
+					if (WriteFile(fh, buffer, nb, &bWritten, NULL) == 0)
+					{
+						errorLog(sformat("Failed to write %d bytes to %s: %lu\n", nb, filename, GetLastError()));
+						err = error_mapper(GetLastError());
+						break;
+					}
 
-				len -= nb;
+					// adjust buffer (pending data)
+					if (buflen > bWritten) {
+						memmove(&buffer[0], &buffer[bWritten], buflen-bWritten);
+					}
+					buflen -= bWritten;
+				}
 			}
 			if (len)	// connection was closed
 			{
