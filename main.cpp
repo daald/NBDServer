@@ -119,7 +119,7 @@ void errorLog(string message){
         cerr<<"[-] "<<message<<endl;
      }
 }
-     
+
 int error_mapper(DWORD winerr)
 {
 	switch(winerr){
@@ -259,7 +259,7 @@ DWORD WINAPI blockServe(LPVOID data){
 
     //memory read structures
     char info_buffer[4096];
-    struct pmem_info_ioctrl *info = (struct pmem_info_ioctrl *)info_buffer;    
+    struct pmem_info_ioctrl *info = (struct pmem_info_ioctrl *)info_buffer;
     int i;
 
 	// open file 'filename'
@@ -268,14 +268,14 @@ DWORD WINAPI blockServe(LPVOID data){
     if (bMemory){
        debugLog("opening memory");
        fh=CreateFile(filename,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
-    }             
+    }
     else if (allowWrite){
          fh = CreateFile(filename, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    }     
+    }
     else{
     	 fh = CreateFile(filename, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     }
-    
+
 	if (fh == INVALID_HANDLE_VALUE)
 	{
 		errorLog(sformat("Error opening file %s: %lu\n", filename, GetLastError()));
@@ -285,7 +285,7 @@ DWORD WINAPI blockServe(LPVOID data){
 	// find length of file or starting offset of partition
 	memset(&offset, 0x00, sizeof(offset));
 	memset(&fsize, 0x00, sizeof(fsize));
-	
+
 	//disk, volume, memory or file?
 	if (strnicmp(filename, "\\\\.\\PHYSICALDRIVE", 17) == 0)	/* disk */
 	{
@@ -303,8 +303,8 @@ DWORD WINAPI blockServe(LPVOID data){
 			goto error;
 		}
 
-		//dli->PartitionCount is stupid and answers 4 if MBR..count array instead. 
-		
+		//dli->PartitionCount is stupid and answers 4 if MBR..count array instead.
+
 		int partitionCount=0;
 		partitionCount=sizeof(dli->PartitionEntry) / sizeof(*dli->PartitionEntry);
 		debugLog(sformat("Partitions %d\n",partitionCount));
@@ -316,9 +316,7 @@ DWORD WINAPI blockServe(LPVOID data){
 			debugLog("Gathered length from all partitions\n");
 			//set offset to 0 and length to length of all partitions
 			offset = (dli -> PartitionEntry[0]).StartingOffset;
-			
 		}else{
-		
 			debugLog(sformat("Targeting only partition %d\n",partitionNo));
 			// find starting offset of partition
 			offset = (dli -> PartitionEntry[partitionNo]).StartingOffset;
@@ -326,8 +324,8 @@ DWORD WINAPI blockServe(LPVOID data){
 		}
 
 		debugLog(sformat("Partition %d is of type %02x\n", partitionNo, (dli -> PartitionEntry[partitionNo]).PartitionType));
-		debugLog(sformat("Offset: %ld,%ld (%lx%lx)\n", offset.HighPart, offset.LowPart, offset.HighPart, offset.LowPart));
-		debugLog(sformat("Length: %ld,%ld (%lx%lx)\n", fsize.HighPart, fsize.LowPart, fsize.HighPart, fsize.LowPart));
+		debugLog(sformat("Offset: %lld (%llx)\n", offset.QuadPart, offset.QuadPart));
+		debugLog(sformat("Length: %lld (%llx)\n", fsize.QuadPart,  fsize.QuadPart));
 
 	}
 	else if (strnicmp(filename, "\\\\.\\", 4 ) == 0 && !bMemory ) //assume a volume name like \\.\C: or \\.\HarddiskVolume1 
@@ -347,7 +345,6 @@ DWORD WINAPI blockServe(LPVOID data){
 		}
 
 		fsize  = gli -> Length;
-		
 	}
 	else if (bMemory){
          DWORD size;
@@ -366,19 +363,19 @@ DWORD WINAPI blockServe(LPVOID data){
 
             //assume we start at the beginning of the first run.
             //offset.QuadPart=info->runs[0].start;
-            //fsize.QuadPart=info->runs[0].length; 
-            
+            //fsize.QuadPart=info->runs[0].length;
+
             //start at the beginning of 'memory'
             offset.QuadPart=0;
 
-            //find memory size from a combination of the runs and the padding we will perform later.                        
+            //find memory size from a combination of the runs and the padding we will perform later.
             debugLog(sformat("CR3: 0x%010llX\n %d memory ranges:", info->cr3,info->number_of_runs));
             __int64 fsizeoffset=0;
             for(i=0; i<info->number_of_runs; i++) {
                      debugLog(sformat("Start 0x%08llX - Length 0x%08llX", info->runs[i]));
-                     fsize.QuadPart+=(info->runs[i].start-fsizeoffset)+info->runs[i].length; 
+                     fsize.QuadPart+=(info->runs[i].start-fsizeoffset)+info->runs[i].length;
                      fsizeoffset=info->runs[i].start+info->runs[i].length;
-            };             
+            };
         }
 
    }
@@ -431,7 +428,7 @@ DWORD WINAPI blockServe(LPVOID data){
 		errorLog("Failed to send filesize.");
 		goto error;
 	}
-	
+
 	// send a couple of zeros */
 	unsigned char buffer[128];
 	memset(buffer, 0x00, 128);
@@ -464,13 +461,13 @@ DWORD WINAPI blockServe(LPVOID data){
 		}
 
         //len=ntohl(len);
-        
+
 		handle[8] = 0x00;
 //		debugLog(sformat("Magic:    %lx", magic));
-		debugLog(sformat("Offset:   %ld,%ld (%lx%lx)", from.HighPart, from.LowPart, from.HighPart, from.LowPart));
+		debugLog(sformat("Offset:   %lld (%llx)", from.QuadPart, from.QuadPart));
 		debugLog(sformat("Len:      %ld", len));
 		//debugLog(sformat("Handle:   %s\n", handle));
-		debugLog(sformat("Req.type: %u (%s)", type, (type==1)?"write":(type==0)?"read":"?"));
+		debugLog(sformat("Req.type: %d (%s)", type, (type==1)?"write":(type==0)?"read":"?"));
 
 
 		// verify protocol
@@ -482,12 +479,12 @@ DWORD WINAPI blockServe(LPVOID data){
 
 		// calculate current offset
 		cur_offset = add_li(offset, from);
-       
+
 		// seek to 'from'
 		if (type!=2 && !bMemory && SetFilePointer(fh, cur_offset.LowPart, &cur_offset.HighPart, FILE_BEGIN) == 0xFFFFFFFF)
 		{
-			errorLog(sformat("Error seeking in file %s to position %d,%d (%x%x): %lu\n", filename,
-				cur_offset.HighPart, cur_offset.LowPart, cur_offset.HighPart, cur_offset.LowPart, GetLastError()));
+			errorLog(sformat("Error seeking in file %s to position %lld (%llx): %lu\n", filename,
+				cur_offset.QuadPart, cur_offset.QuadPart, GetLastError()));
 			err = error_mapper(GetLastError());
 		}
 
@@ -573,14 +570,14 @@ DWORD WINAPI blockServe(LPVOID data){
 				int pnt = 0;
 				bool bPad= true;
 
-                //are we padding or reading memory based on our 'position' in the memory 'file'				
+                //are we padding or reading memory based on our 'position' in the memory 'file'
 				if (bMemory){
                     for(i=0; i<info->number_of_runs; i++) {
                         if ( (info->runs[i].start <= cur_offset.QuadPart) && (nb<=info->runs[i].length)) {
                             bPad=false;  //really read the mem driver
                             //debugLog(sformat("no pad for : %lld, %d ",cur_offset.QuadPart,nb));
                         }
-                    }				    
+                    }
 				}
 
                 if (bMemory){
@@ -592,21 +589,19 @@ DWORD WINAPI blockServe(LPVOID data){
                 		// seek to 'from'
                 		if (SetFilePointer(fh, cur_offset.LowPart, &cur_offset.HighPart, FILE_BEGIN) == 0xFFFFFFFF)
                 		{
-                			errorLog(sformat("Error seeking in file %s to position %d,%d (%x%x): %lu\n", filename,
-                				cur_offset.HighPart, cur_offset.LowPart, cur_offset.HighPart, cur_offset.LowPart, GetLastError()));
+                			errorLog(sformat("Error seeking in file %s to position %lld (%llx): %lu\n", filename,
+                				cur_offset.QuadPart, cur_offset.QuadPart, GetLastError()));
                 			err = error_mapper(GetLastError());
                 			break;
-                		}                        
+                		}
         				if (ReadFile(fh, buffer, nb, &dummy, NULL) == 0)
         				{
         					errorLog(sformat("Failed to read from %s: %lu\n", filename, GetLastError()));
         					break;
         				}
-                                                
                     }
                     cur_offset.QuadPart+=nb;
                 }else{
-                    
     				// read nb to buffer;
     				if (ReadFile(fh, buffer, nb, &dummy, NULL) == 0)
     				{
@@ -619,7 +614,6 @@ DWORD WINAPI blockServe(LPVOID data){
     					break;
     				}
                 }
-                
 				// send through socket
 				if (WRITE(sockh, buffer, nb) != nb) // connection was closed
 				{
@@ -637,7 +631,7 @@ DWORD WINAPI blockServe(LPVOID data){
             //requested close
             infoLog("Closed socket.");
             break;
-        }			
+        }
 		else
 		{
 			errorLog(sformat("Unexpected commandtype: %d\n", type));
@@ -656,7 +650,7 @@ error:
 
 	ExitThread(0);
 
-	return 0;    
+	return 0;
 }
 
 
@@ -675,7 +669,7 @@ int main(int argc, char *argv[])
     ifstream nbdfile;
     int iError;
     size_t found;
-    
+
     while ((ch=getopt(argc,argv,"c:p:f:n:hwdq")) != EOF)
     switch(ch)
     {
@@ -690,7 +684,7 @@ int main(int argc, char *argv[])
             break;
         case 'w':
             allowWrite=true;
-            break;            
+            break;
         case 'p':
             port=atoi(optarg);
             break;
@@ -700,7 +694,7 @@ int main(int argc, char *argv[])
 				partitionNo=-1;
 			}else{
 				partitionNo=atoi(optarg);
-			}            
+			}
             break;
         case 'f':
             nbdfilename=optarg;
@@ -712,11 +706,11 @@ int main(int argc, char *argv[])
             usage(argv[0]);
             return(-1);
     }
-    
+
     if (debug){
         debugFile.open("debug.log");
     }
-    
+
     found=nbdfilename.find("pmem");
     if (found!=string::npos){
        bMemory=true;
@@ -736,7 +730,7 @@ int main(int argc, char *argv[])
             return(-1);
         }
     }
-    
+
     //socket init.
    	SOCKET sSock;
 	WSADATA wsdata;
@@ -759,7 +753,7 @@ int main(int argc, char *argv[])
 	sServer.sin_family = AF_INET;
 	sServer.sin_addr.s_addr = INADDR_ANY;  //listen on any/all IPs.
 	sServer.sin_port=htons(port);
-	
+
 	//socket options
 	int * p_int ;
     p_int = (int*)malloc(sizeof(int));
@@ -770,19 +764,19 @@ int main(int argc, char *argv[])
         errorLog(sformat("Error setting options %lu\n", WSAGetLastError()));
         return(-1);
     }
-	
+
 	if (bind(sSock,(LPSOCKADDR) &sServer,sizeof(sServer)) ==SOCKET_ERROR){
         errorLog("Could not bind socket to server");
         return(-1);
     }
-    
+
     //listen and start thread to handle connections
     if (listen(sSock,20)==SOCKET_ERROR){
         errorLog("Error listening on socket");
     }else{
         debugLog("Listening...");
     }
-    
+
     while (1){
         debugLog("Init socket loop");
         SOCKET sClient;
@@ -797,24 +791,17 @@ int main(int argc, char *argv[])
             closesocket(sClient);
         }else if (sClient != INVALID_SOCKET)
 		{
-			infoLog(sformat("Connection made with: %s",inet_ntoa(clientAddr.sin_addr)));            
+			infoLog(sformat("Connection made with: %s",inet_ntoa(clientAddr.sin_addr)));
             DWORD tid;
-			HANDLE th = CreateThread(NULL, 0, blockServe, (void *)sClient, 0, &tid);			
-			
+			HANDLE th = CreateThread(NULL, 0, blockServe, (void *)sClient, 0, &tid);
         }else{
             errorLog("Invalid Socket");
         }
-    
     }
-	
+
 	if (debug){
 	    debugFile.close();
 	}
-	
-	
-	
-	
-	
 
 
 }
