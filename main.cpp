@@ -527,6 +527,19 @@ DWORD WINAPI blockServe(LPVOID data){
 					}
 					buflen -= bWritten;
 				}
+
+				if (len==0 && buflen>0) {
+					// obviously the data read is not divideable by 512. to avoid an infinite loop, we try
+					// to write down the rest here
+					DWORD bWritten;
+					if (WriteFile(fh, buffer, buflen, &bWritten, NULL) == 0 || bWritten!=buflen)
+					{
+						errorLog(sformat("Failed to write %d bytes to %s: %u\n", buflen, filename, GetLastError()));
+						err = error_mapper(GetLastError());
+						break;
+					}
+					buflen = 0;
+				}
 			}
 			if (len)	// connection was closed
 			{
